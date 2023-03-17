@@ -74,6 +74,8 @@ void CApplicationPlayerCallback::OnPlayBackStarted(const CFileItem& file)
     appPlayer->SetUpdateStreamDetails();
   }
 
+  CLog::LogF(LOGFATAL, "DOBO: CApplication::OnPlayBackStarted {}", gettid());
+
   auto& components = CServiceBroker::GetAppComponents();
   const auto stackHelper = components.GetComponent<CApplicationStackHelper>();
   if (stackHelper->IsPlayingISOStack() || stackHelper->IsPlayingRegularStack())

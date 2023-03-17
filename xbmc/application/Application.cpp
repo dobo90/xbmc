@@ -2720,6 +2720,7 @@ bool CApplication::OnMessage(CGUIMessage& message)
       }
       else if (message.GetParam1() == GUI_MSG_UPDATE_ITEM && message.GetItem())
       {
+        CLog::LogF(LOGFATAL, "DOBO: CApplication::OnMessage {}", gettid());
         CFileItemPtr item = std::static_pointer_cast<CFileItem>(message.GetItem());
         if (m_itemCurrentFile->IsSamePath(item.get()))
         {
