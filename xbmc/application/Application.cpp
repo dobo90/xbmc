@@ -33,6 +33,7 @@
 #include "application/ApplicationStackHelper.h"
 #include "application/ApplicationVolumeHandling.h"
 #include "cores/AudioEngine/Engines/ActiveAE/ActiveAE.h"
+#include "cores/DataCacheCore.h"
 #include "cores/IPlayer.h"
 #include "cores/playercorefactory/PlayerCoreFactory.h"
 #include "dialogs/GUIDialogBusy.h"
@@ -227,7 +228,9 @@ CApplication::CApplication(void)
     m_Autorun(new CAutorun()),
 #endif
     m_pInertialScrollingHandler(new CInertialScrollingHandler()),
-    m_WaitingExternalCalls(0)
+    m_WaitingExternalCalls(0),
+    m_itemCurrentFile(new CFileItem),
+    m_playerEvent(true, true)
 {
   TiXmlBase::SetCondenseWhiteSpace(false);
 
@@ -2736,6 +2739,9 @@ bool CApplication::OnMessage(CGUIMessage& message)
       // @TODO move this away to platform code
       CDarwinUtils::SetScheduling(GetComponent<CApplicationPlayer>()->IsPlayingVideo());
 #endif
+      m_itemCurrentFile.reset(new CFileItem(*std::static_pointer_cast<CFileItem>(message.GetItem())));
+      m_playerEvent.Reset();
+
       PLAYLIST::CPlayList playList = CServiceBroker::GetPlaylistPlayer().GetPlaylist(
           CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist());
 
@@ -2877,6 +2883,14 @@ bool CApplication::OnMessage(CGUIMessage& message)
     }
 
   case GUI_MSG_PLAYBACK_STOPPED:
+  {
+    CServiceBroker::GetPVRManager().OnPlaybackStopped(*m_itemCurrentFile);
+
+    CVariant data(CVariant::VariantTypeObject);
+    data["end"] = false;
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnStop",
+                                                       m_itemCurrentFile, data);
+
     m_playerEvent.Set();
     ResetCurrentItem();
     PlaybackCleanup();
@@ -2884,9 +2898,17 @@ bool CApplication::OnMessage(CGUIMessage& message)
     CServiceBroker::GetXBPython().OnPlayBackStopped();
 #endif
      return true;
+  }
 
   case GUI_MSG_PLAYBACK_ENDED:
   {
+    CServiceBroker::GetPVRManager().OnPlaybackEnded(*m_itemCurrentFile);
+
+    CVariant data(CVariant::VariantTypeObject);
+    data["end"] = true;
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnStop",
+                                                       m_itemCurrentFile, data);
+
     m_playerEvent.Set();
     const auto stackHelper = GetComponent<CApplicationStackHelper>();
     if (stackHelper->IsPlayingRegularStack() && stackHelper->HasNextStackPartFileItem())
@@ -2914,6 +2936,12 @@ bool CApplication::OnMessage(CGUIMessage& message)
     return true;
 
   case GUI_MSG_PLAYBACK_AVSTARTED:
+  {
+    CVariant param;
+    param["player"]["speed"] = 1;
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnAVStart",
+                                                       m_itemCurrentFile, param);
     m_playerEvent.Set();
 #ifdef HAS_PYTHON
     // informs python script currently running playback has started
@@ -2921,14 +2949,72 @@ bool CApplication::OnMessage(CGUIMessage& message)
     CServiceBroker::GetXBPython().OnAVStarted(*m_itemCurrentFile);
 #endif
     return true;
+  }
 
   case GUI_MSG_PLAYBACK_AVCHANGE:
+  {
 #ifdef HAS_PYTHON
     // informs python script currently running playback has started
     // (does nothing if python is not loaded)
     CServiceBroker::GetXBPython().OnAVChange();
 #endif
-      return true;
+    CVariant param;
+    param["player"]["speed"] = 1;
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnAVChange",
+                                                       m_itemCurrentFile, param);
+    return true;
+  }
+
+  case GUI_MSG_PLAYBACK_PAUSED:
+  {
+    CVariant param;
+    param["player"]["speed"] = 0;
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnPause",
+                                                       m_itemCurrentFile, param);
+    return true;
+  }
+
+  case GUI_MSG_PLAYBACK_RESUMED:
+  {
+    CVariant param;
+    param["player"]["speed"] = 1;
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnResume",
+                                                       m_itemCurrentFile, param);
+    return true;
+  }
+
+  case GUI_MSG_PLAYBACK_SEEKED:
+  {
+    CVariant param;
+    const int64_t iTime = message.GetParam1();
+    const int64_t seekOffset = message.GetParam2();
+    JSONRPC::CJSONUtils::MillisecondsToTimeObject(iTime, param["player"]["time"]);
+    JSONRPC::CJSONUtils::MillisecondsToTimeObject(seekOffset, param["player"]["seekoffset"]);
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    const auto& components = CServiceBroker::GetAppComponents();
+    const auto appPlayer = components.GetComponent<CApplicationPlayer>();
+    param["player"]["speed"] = static_cast<int>(appPlayer->GetPlaySpeed());
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnSeek",
+                                                       m_itemCurrentFile, param);
+
+    CDataCacheCore::GetInstance().SeekFinished(static_cast<int>(seekOffset));
+
+    return true;
+  }
+
+  case GUI_MSG_PLAYBACK_SPEED_CHANGED:
+  {
+    CVariant param;
+    param["player"]["speed"] = message.GetParam1();
+    param["player"]["playerid"] = CServiceBroker::GetPlaylistPlayer().GetCurrentPlaylist();
+    CServiceBroker::GetAnnouncementManager()->Announce(ANNOUNCEMENT::Player, "OnSpeedChanged",
+                                                       m_itemCurrentFile, param);
+
+    return true;
+  }
 
   case GUI_MSG_PLAYBACK_ERROR:
     HELPERS::ShowOKDialogText(CVariant{16026}, CVariant{16027});

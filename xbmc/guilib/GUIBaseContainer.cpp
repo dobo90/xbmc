@@ -498,7 +498,7 @@ bool CGUIBaseContainer::OnMessage(CGUIMessage& message)
         int offset = GetOffset();
         if (message.GetParam2() && message.GetParam2() == 1)
           offset = 0;
-        int item = std::min(offset + message.GetParam1() - 1, (int)m_items.size() - 1);
+        int item = std::min(offset + (int)message.GetParam1() - 1, (int)m_items.size() - 1);
         SelectItem(item);
       }
     }
