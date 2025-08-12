@@ -99,6 +99,8 @@ void CGUIControlGroup::Process(unsigned int currentTime, CDirtyRegionList &dirty
   }
 
   CServiceBroker::GetWinSystem()->GetGfxContext().RestoreOrigin();
+  if (m_renderRegion != rect)
+    MarkDirtyRegion(DIRTY_STATE_CHILD);
   CGUIControl::Process(currentTime, dirtyregions);
   m_renderRegion = rect;
 }
