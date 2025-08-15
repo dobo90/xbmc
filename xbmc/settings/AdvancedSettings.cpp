@@ -1272,6 +1272,7 @@ void CAdvancedSettings::ParseSettingsFile(const std::string &file)
     XMLUtils::GetBoolean(pElement, "geometryclear", m_guiGeometryClear);
     XMLUtils::GetBoolean(pElement, "asynctextureupload", m_guiAsyncTextureUpload);
     XMLUtils::GetBoolean(pElement, "transparentvideolayout", m_guiVideoLayoutTransparent);
+    XMLUtils::GetBoolean(pElement, "forcedisableasyncrendering", m_forceDisableAsyncRendering);
   }
 
   std::string seekSteps;
