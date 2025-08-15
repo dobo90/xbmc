@@ -351,6 +351,7 @@ class CAdvancedSettings : public ISettingCallback, public ISettingsHandler
     bool m_guiGeometryClear{true};
     bool m_guiAsyncTextureUpload{false};
     bool m_guiVideoLayoutTransparent{false};
+    bool m_guiForceDisableAsyncRendering{false};
 
     unsigned int m_addonPackageFolderSize;
 

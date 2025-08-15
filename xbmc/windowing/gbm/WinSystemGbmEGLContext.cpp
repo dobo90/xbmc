@@ -9,8 +9,11 @@
 #include "WinSystemGbmEGLContext.h"
 
 #include "OptionalsReg.h"
+#include "ServiceBroker.h"
 #include "cores/VideoPlayer/DVDCodecs/DVDFactoryCodec.h"
 #include "cores/VideoPlayer/VideoRenderers/RenderFactory.h"
+#include "settings/AdvancedSettings.h"
+#include "settings/SettingsComponent.h"
 #include "utils/log.h"
 
 using namespace KODI::WINDOWING::GBM;
@@ -58,8 +61,14 @@ bool CWinSystemGbmEGLContext::InitWindowSystemEGL(EGLint renderableType, EGLint 
     return false;
   }
 
-  if (CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_ANDROID_native_fence_sync") &&
-      CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_KHR_fence_sync"))
+  if (CServiceBroker::GetSettingsComponent()
+          ->GetAdvancedSettings()
+          ->m_guiForceDisableAsyncRendering)
+  {
+    CLog::Log(LOGINFO, "[GBM] async rendering disabled");
+  }
+  else if (CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_ANDROID_native_fence_sync") &&
+           CEGLUtils::HasExtension(m_eglContext.GetEGLDisplay(), "EGL_KHR_fence_sync"))
   {
     m_eglFence = std::make_unique<KODI::UTILS::EGL::CEGLFence>(m_eglContext.GetEGLDisplay());
   }
