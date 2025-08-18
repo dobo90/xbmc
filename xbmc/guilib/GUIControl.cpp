@@ -128,15 +128,6 @@ void CGUIControl::DoProcess(unsigned int currentTime, CDirtyRegionList &dirtyreg
   if (Animate(currentTime))
     MarkDirtyRegion();
 
-  // if the control changed culling state from true to false, mark it
-  const bool culled = m_transform.alpha <= 0.01f;
-  if (m_isCulled != culled)
-  {
-    m_isCulled = false;
-    MarkDirtyRegion();
-  }
-  m_isCulled = culled;
-
   if (IsVisible())
   {
     m_cachedTransform = CServiceBroker::GetWinSystem()->GetGfxContext().AddTransform(m_transform);
@@ -184,7 +175,7 @@ void CGUIControl::DoRender()
       !m_renderRegion.Intersects(CServiceBroker::GetWinSystem()->GetGfxContext().GetScissors()))
     return;
 
-  if (IsVisible() && !m_isCulled)
+  if (IsVisible() && m_transform.alpha > 0.01f)
   {
     bool hasStereo =
         m_stereo != 0.0f &&
@@ -495,9 +486,6 @@ void CGUIControl::AssignDepth()
 
 void CGUIControl::MarkDirtyRegion(const unsigned int dirtyState)
 {
-  // if the control is culled, bail
-  if (dirtyState == DIRTY_STATE_CONTROL && m_isCulled)
-    return;
   if (!m_controlDirtyState && m_parentControl)
     m_parentControl->MarkDirtyRegion(DIRTY_STATE_CHILD);
 
